@@ -1427,7 +1427,7 @@ class FileMessage(Message):
 
 # TODO: Update docstring (arguments)
 @aio_run_proxy
-class GroupFileMessage(Message):
+class GroupFileMessage(FileMessage):
     """
     A file message including a thumbnail.
 
