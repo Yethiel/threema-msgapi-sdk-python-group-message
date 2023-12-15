@@ -3,50 +3,50 @@
 ## Support for Group messages
 
 - group_text_message: `0x41`
-  - receive [x]
-  - send [ ]
+  - [x] receive
+  - [ ] send
 - group_audio_message: `0x45`
-  - receive [ ]
-  - send [ ]
+  - [ ] receive
+  - [ ] send
 - group_ballot_create_message: `0x52`
-  - receive [ ]
-  - send [ ]
+  - [ ] receive
+  - [ ] send
 - group_ballot_vote_message: `0x53`
-  - receive [ ]
-  - send [ ]
+  - [ ] receive
+  - [ ] send
 - group_create_message: `0x4a`
-  - receive [ ]
-  - send [ ]
+  - [ ] receive
+  - [ ] send
 - group_delete_photo: `0x54`
-  - receive [ ]
-  - send [ ]
+  - [ ] receive
+  - [ ] send
 - group_delivery_receipt: `0x81`
-  - receive [ ]
-  - send [ ]
+  - [ ] receive
+  - [ ] send
 - group_file_message: `0x46`
-  - receive [x]
-  - send [ ]
+  - [x] receive
+  - [ ] send
 - group_image_message: `0x43`
-  - receive [ ]
-  - send [ ]
+  - [ ] receive
+  - [ ] send
 - group_leave_message: `0x4c`
-  - receive [ ]
-  - send [ ]
+  - [ ] receive
+  - [ ] send
 - group_location_message: `0x42`
-  - receive [ ]
-  - send [ ]
+  - [ ] receive
+  - [ ] send
 - group_rename_message: `0x4b`
-  - receive [ ]
-  - send [ ]
+  - [ ] receive
+  - [ ] send
 - group_request_sync_message: `0x51`
-  - receive [ ]
-  - send [ ]
+  - [ ] receive
+  - [ ] send
 - group_set_photo: `0x50`
-  - receive [ ]
-  - send [ ]
+  - [ ] receive
+  - [ ] send
 - group_video_message: `0x44`
-  - receive [ ]
-  - send [ ]
+  - [ ] receive
+  - [ ] send
 
 [![Travis](https://travis-ci.org/threema-ch/threema-msgapi-sdk-python.svg?branch=master)](https://travis-ci.org/threema-ch/threema-msgapi-sdk-python)
 [![codecov](https://codecov.io/gh/threema-ch/threema-msgapi-sdk-python/branch/master/graph/badge.svg)](https://codecov.io/gh/threema-ch/threema-msgapi-sdk-python)
