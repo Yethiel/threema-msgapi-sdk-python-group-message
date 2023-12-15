@@ -295,6 +295,21 @@ class Message(AioRunMixin, metaclass=abc.ABCMeta):
         video_message = 0x13
         file_message = 0x17
         delivery_receipt = 0x80
+        group_text_message = 0x41
+        group_audio_message = 0x45
+        group_ballot_create_message = 0x52
+        group_ballot_vote_message = 0x53
+        group_create_message = 0x4a
+        group_delete_photo = 0x54
+        group_delivery_receipt = 0x81
+        group_file_message = 0x46
+        group_image_message = 0x43
+        group_leave_message = 0x4c
+        group_location_message = 0x42
+        group_rename_message = 0x4b
+        group_request_sync_message = 0x51
+        group_set_photo = 0x50
+        group_video_message = 0x44
 
     @enum.unique
     class Direction(enum.IntEnum):
@@ -323,6 +338,8 @@ class Message(AioRunMixin, metaclass=abc.ABCMeta):
                 cls.Type.video_message: VideoMessage,
                 cls.Type.file_message: FileMessage,
                 cls.Type.delivery_receipt: DeliveryReceipt,
+                cls.Type.group_text_message: GroupTextMessage,
+                cls.Type.group_file_message: GroupFileMessage,
             }
         return cls._message_classes[type_]
 
@@ -783,6 +800,75 @@ class TextMessage(Message):
         # Return instance
         return cls(connection, from_data=dict(parameters, **{
             'text': text,
+        }))
+
+
+# TODO: Update docstring (arguments)
+@aio_run_proxy
+class GroupTextMessage(Message):
+    """
+    A group text message.
+
+    If the connection passed to the constructor is in blocking mode, then all
+    methods on this class will be blocking too.
+
+    Arguments for a new message:
+        - `connection`: An instance of a connection.
+        - `text': Message text.
+        - `group_id`: The group ID.
+        - `id`: Threema ID of the recipient.
+        - `key`: The public key of the recipient. Will be fetched from
+           the server if not supplied.
+        - `key_file`: A file where the private key is stored in. Can
+          be used instead of passing the key directly.
+        - `text`: Message text. Will be encrypted automatically.
+
+    Arguments for an existing message:
+        - `payload`: The remaining byte sequence of a decrypted
+          message.
+    """
+    async_functions = {
+        'pack',
+        'unpack',
+    }
+
+    def __init__(self, connection, text=None, group_id=None, from_data=None, **kwargs):
+        super().__init__(connection, Message.Type.text_message,
+                         from_data=from_data, **kwargs)
+        if self._direction == self.Direction.outgoing:
+            if text is None:
+                raise ValueError("Parameter 'text' required")
+            if group_id is None:
+                raise ValueError("Parameter 'group_id' required")
+            self.group_id = group_id
+            self.text = text
+        else:
+            self.group_id = from_data.get('group_id')
+            self.text = from_data.get('text')
+
+    def __str__(self):
+        return self.text
+
+    async def pack(self, writer):
+        raise NotImplementedError
+    
+    @classmethod
+    async def unpack(cls, connection, parameters, key_pair, reader):
+        # Get text
+        sender_id = bytes(reader.readexactly(8))
+        group_id = bytes(reader.readexactly(8))
+        text = bytes(reader.readexactly(len(reader)))
+
+        # Decode text
+        try:
+            text = text.decode('utf-8')
+        except UnicodeError as exc:
+            raise MessageError('Could not decode text') from exc
+
+        # Return instance
+        return cls(connection, from_data=dict(parameters, **{
+            'text': text,
+            'group_id': group_id,
         }))
 
 
@@ -1286,6 +1372,131 @@ class FileMessage(Message):
     async def unpack(cls, connection, parameters, key_pair, reader):
         # Get payload
         try:
+            content = bytes(reader.readexactly(len(reader))).decode('ascii')
+        except UnicodeError as exc:
+            raise MessageError('Could not decode JSON') from exc
+
+        # Unpack payload from JSON
+        try:
+            content = json.loads(content)
+        except UnicodeError as exc:
+            raise MessageError('Could not decode JSON') from exc
+        except ValueError as exc:
+            raise MessageError('Could not load JSON') from exc
+
+        # Unpack JSON
+        try:
+            file_id = content['b']
+            key = binascii.unhexlify(content['k'])
+            mime_type = content['m']
+            file_name = content['n']
+            file_content_length = content['s']
+        except KeyError as exc:
+            raise MessageError('Invalid JSON payload') from exc
+        except binascii.Error as exc:
+            raise MessageError('Could not convert hex-encoded secret key') from exc
+        thumbnail_id = content.get('t')
+
+        # Download and decrypt thumbnail (if any)
+        if thumbnail_id is not None:
+            response = await connection.download(thumbnail_id)
+            thumbnail_data = await response.read()
+            thumbnail_content = _sk_decrypt(key, cls.nonce['thumbnail'], thumbnail_data)
+        else:
+            thumbnail_content = None
+
+        # Download and decrypt file
+        response = await connection.download(file_id)
+        file_data = await response.read()
+        file_content = _sk_decrypt(key, cls.nonce['file'], file_data)
+
+        # Validate file content length
+        length = len(file_content)
+        if length != file_content_length:
+            message = 'File content length does not match (expected: {}, got: {})'
+            raise MessageError(message.format(file_content_length, length))
+
+        # Return instance
+        return cls(connection, from_data=dict(parameters, **{
+            'file_content': file_content,
+            'mime_type': mime_type,
+            'file_name': file_name,
+            'thumbnail_content': thumbnail_content,
+        }))
+
+
+# TODO: Update docstring (arguments)
+@aio_run_proxy
+class GroupFileMessage(Message):
+    """
+    A file message including a thumbnail.
+
+    If the connection passed to the constructor is in blocking mode, then all
+    methods on this class will be blocking too.
+
+    Arguments for a new message:
+        - `connection`: An instance of a connection.
+        - `id`: Threema ID of the recipient.
+        - `key`: The public key of the recipient. Will be fetched from
+           the server if not supplied.
+        - `key_file`: A file where the private key is stored in. Can
+          be used instead of passing the key directly.
+        - `file_path`: The path to a file.
+        - `thumbnail_path`: The path to a thumbnail of the file.
+
+    Arguments for an existing message:
+        - `payload`: The remaining byte sequence of a decrypted
+          message.
+    """
+    async_functions = {
+        'pack',
+        'unpack',
+    }
+    required_capabilities = {
+        ReceptionCapability.file
+    }
+
+    def __init__(
+            self, connection,
+            file_content=None, mime_type=None, file_name='file', file_path=None,
+            thumbnail_content=None, thumbnail_path=None,
+            from_data=None, **kwargs
+    ):
+        super().__init__(connection, Message.Type.file_message,
+                         from_data=from_data, **kwargs)
+        if self._direction == self.Direction.outgoing:
+            file_and_mime = all((param is not None for param
+                                 in [file_content, mime_type]))
+            path_param = file_path is not None
+            if sum((1 for param in (file_and_mime, path_param) if param)) != 1:
+                raise ValueError(("Either 'file_content' and 'mime_type' or 'file_path' "
+                                  "need to be specified"))
+            if sum((1 for param in (thumbnail_content, thumbnail_path) if param)) > 1:
+                raise ValueError(("Either 'thumbnail_content' or 'thumbnail_path' may "
+                                  "to be specified"))
+            self._file_content = file_content
+            self._mime_type = mime_type
+            self._file_name = file_name
+            self._file_path = file_path
+            self._thumbnail_content = thumbnail_content
+            self._thumbnail_path = thumbnail_path
+        else:
+            self._file_content = from_data['file_content']
+            self._mime_type = from_data['mime_type']
+            self._file_name = from_data['file_name']
+            self._file_path = None
+            self._thumbnail_content = from_data['thumbnail_content']
+            self._thumbnail_path = None
+
+    async def pack(self, writer):
+        raise NotImplementedError
+
+    @classmethod
+    async def unpack(cls, connection, parameters, key_pair, reader):
+        # Get payload
+        try:
+            sender_id = bytes(reader.readexactly(8))
+            group_id = bytes(reader.readexactly(8))
             content = bytes(reader.readexactly(len(reader))).decode('ascii')
         except UnicodeError as exc:
             raise MessageError('Could not decode JSON') from exc
