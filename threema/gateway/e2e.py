@@ -291,25 +291,28 @@ class Message(AioRunMixin, metaclass=abc.ABCMeta):
         The type of a message.
         """
         text_message = 0x01
-        image_message = 0x02
-        video_message = 0x13
         file_message = 0x17
         delivery_receipt = 0x80
         group_text_message = 0x41
-        group_audio_message = 0x45
         group_ballot_create_message = 0x52
         group_ballot_vote_message = 0x53
         group_create_message = 0x4a
         group_delete_photo = 0x54
         group_delivery_receipt = 0x81
         group_file_message = 0x46
-        group_image_message = 0x43
         group_leave_message = 0x4c
         group_location_message = 0x42
         group_rename_message = 0x4b
         group_request_sync_message = 0x51
         group_set_photo = 0x50
+
+        # deprecated
+        group_image_message = 0x43
+        image_message = 0x02
+        video_message = 0x13
+        group_audio_message = 0x45
         group_video_message = 0x44
+        
 
     @enum.unique
     class Direction(enum.IntEnum):
@@ -1459,7 +1462,7 @@ class GroupFileMessage(FileMessage):
     def __init__(
             self, connection,
             file_content=None, mime_type=None, file_name='file', file_path=None,
-            thumbnail_content=None, thumbnail_path=None,
+            thumbnail_content=None, thumbnail_path=None, caption=''
             from_data=None, **kwargs
     ):
         super().__init__(connection, Message.Type.file_message,
@@ -1480,6 +1483,7 @@ class GroupFileMessage(FileMessage):
             self._file_path = file_path
             self._thumbnail_content = thumbnail_content
             self._thumbnail_path = thumbnail_path
+            self._caption = caption
         else:
             self._file_content = from_data['file_content']
             self._mime_type = from_data['mime_type']
@@ -1487,6 +1491,7 @@ class GroupFileMessage(FileMessage):
             self._file_path = None
             self._thumbnail_content = from_data['thumbnail_content']
             self._thumbnail_path = None
+            self._caption = from_data['caption']
 
     async def pack(self, writer):
         raise NotImplementedError
@@ -1516,6 +1521,7 @@ class GroupFileMessage(FileMessage):
             mime_type = content['m']
             file_name = content['n']
             file_content_length = content['s']
+            caption = content['d'] if 'd' in content else ''
         except KeyError as exc:
             raise MessageError('Invalid JSON payload') from exc
         except binascii.Error as exc:
@@ -1547,4 +1553,5 @@ class GroupFileMessage(FileMessage):
             'mime_type': mime_type,
             'file_name': file_name,
             'thumbnail_content': thumbnail_content,
+            'caption': caption,
         }))
