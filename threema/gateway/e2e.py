@@ -1462,7 +1462,7 @@ class GroupFileMessage(FileMessage):
     def __init__(
             self, connection,
             file_content=None, mime_type=None, file_name='file', file_path=None,
-            thumbnail_content=None, thumbnail_path=None, caption=''
+            thumbnail_content=None, thumbnail_path=None, caption='',
             from_data=None, **kwargs
     ):
         super().__init__(connection, Message.Type.file_message,
