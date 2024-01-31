@@ -1496,6 +1496,13 @@ class GroupFileMessage(FileMessage):
     async def pack(self, writer):
         raise NotImplementedError
 
+    @property
+    def caption(self):
+        """
+        Return the caption as :class:`str`.
+        """
+        return self._caption
+
     @classmethod
     async def unpack(cls, connection, parameters, key_pair, reader):
         # Get payload
