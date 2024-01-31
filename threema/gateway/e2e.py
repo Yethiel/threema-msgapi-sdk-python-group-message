@@ -1497,7 +1497,7 @@ class GroupFileMessage(FileMessage):
         try:
             sender_id = bytes(reader.readexactly(8))
             group_id = bytes(reader.readexactly(8))
-            content = bytes(reader.readexactly(len(reader))).decode('ascii')
+            content = bytes(reader.readexactly(len(reader))).decode('utf-8')
         except UnicodeError as exc:
             raise MessageError('Could not decode JSON') from exc
 
